@@ -6,17 +6,12 @@ export const useAuthStore = create((set) => ({
   token: localStorage.getItem('admin_token') || null,
 
   login: async (email, password) => {
-    const form = new URLSearchParams()
-    form.append('username', email)
-    form.append('password', password)
-    const { data } = await api.post('/api/auth/login', form, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    })
-    if (data.user?.role !== 'super_admin') {
+    const { data } = await api.post('/api/auth/login', { email, password })
+    if (data.role !== 'super_admin') {
       throw new Error('Access denied. Super admin only.')
     }
     localStorage.setItem('admin_token', data.access_token)
-    set({ token: data.access_token, user: data.user })
+    set({ token: data.access_token, user: data })
   },
 
   logout: () => {

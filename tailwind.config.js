@@ -1,9 +1,70 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  safelist: [
+    'bg-green-dim', 'bg-green-mid', 'bg-orange-dim', 'bg-blue-dim',
+    'bg-amber-dim', 'bg-red-dim', 'bg-purple-dim',
+    'bg-surface2', 'bg-surface3',
+    'text-green', 'text-green2', 'text-orange', 'text-blue',
+    'text-amber', 'text-red', 'text-purple',
+    'text-text', 'text-text2', 'text-text3', 'text-muted',
+    'border-green', 'border-border', 'border-border2',
+    'font-display',
+  ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        display: ['Outfit', 'sans-serif'],
+        sans:    ['Plus Jakarta Sans', 'sans-serif'],
+      },
+      colors: {
+        green:   'var(--green)',
+        green2:  'var(--green2)',
+        orange:  'var(--orange)',
+        blue:    'var(--blue)',
+        amber:   'var(--amber)',
+        red:     'var(--red)',
+        purple:  'var(--purple)',
+        text:    'var(--text)',
+        text2:   'var(--text2)',
+        text3:   'var(--text3)',
+        muted:   'var(--muted)',
+        border:  'var(--border)',
+        border2: 'var(--border2)',
+        bg:      'var(--bg)',
+        bg2:     'var(--bg2)',
+        surface:  'var(--surface)',
+        surface2: 'var(--surface2)',
+        surface3: 'var(--surface3)',
+      },
+      backgroundColor: {
+        'green-dim':  'var(--green-dim)',
+        'green-mid':  'var(--green-mid)',
+        'orange-dim': 'var(--orange-dim)',
+        'blue-dim':   'var(--blue-dim)',
+        'amber-dim':  'var(--amber-dim)',
+        'red-dim':    'var(--red-dim)',
+        'purple-dim': 'var(--purple-dim)',
+      },
+      textColor: {
+        'green-dim':  'var(--green-dim)',
+        'orange-dim': 'var(--orange-dim)',
+        'blue-dim':   'var(--blue-dim)',
+        'amber-dim':  'var(--amber-dim)',
+        'red-dim':    'var(--red-dim)',
+        'purple-dim': 'var(--purple-dim)',
+      },
+      borderRadius: {
+        DEFAULT: 'var(--r-sm)',
+        lg:      'var(--r-lg)',
+        xl:      'var(--r-xl)',
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+      },
+    },
   },
   plugins: [],
 }
-

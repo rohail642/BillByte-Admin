@@ -1,86 +1,411 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, Trash2, CheckCircle, XCircle, Plus, Pencil, KeyRound, X } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
+const planColors = {
+  trial: 'bg-amber-dim text-amber',
+  starter: 'bg-blue-dim text-blue',
+  pro: 'bg-purple-dim text-purple',
+  enterprise: 'bg-green-dim text-green',
+}
+
+const PLANS = ['trial', 'starter', 'pro', 'enterprise']
+const ROLES = ['owner', 'manager', 'cashier', 'waiter', 'kitchen']
+
+// ── Input helper ─────────────────────────────────────────────────────────────
+function Field({ label, value, onChange, type = 'text', readOnly = false }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-text2 mb-1">{label}</label>
+      <input
+        type={type}
+        value={value || ''}
+        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+        readOnly={readOnly}
+        className={`w-full border rounded-lg px-3 py-2 text-sm transition-all focus:outline-none ${
+          readOnly
+            ? 'bg-surface2 border-border text-text3 cursor-default'
+            : 'bg-bg border-border2 text-text focus:border-green focus:ring-2 focus:ring-green-dim'
+        }`}
+      />
+    </div>
+  )
+}
+
+// ── Account modal ─────────────────────────────────────────────────────────────
+function AccountModal({ restaurantId, account, defaultRole, onClose, onSaved }) {
+  const isEdit = !!account
+  const [form, setForm] = useState({
+    name: account?.name || '',
+    email: account?.email || '',
+    phone: account?.phone || '',
+    role: account?.role || defaultRole || 'cashier',
+    password: '',
+  })
+  const [saving, setSaving] = useState(false)
+
+  function set(key, val) { setForm((p) => ({ ...p, [key]: val })) }
+
+  async function handleSave() {
+    if (!form.name || !form.email) return toast.error('Name and email are required.')
+    if (!isEdit && !form.password) return toast.error('Password is required.')
+    setSaving(true)
+    try {
+      if (isEdit) {
+        await api.patch(`/api/admin/restaurants/${restaurantId}/accounts/${account.id}`, form)
+        toast.success('Account updated')
+      } else {
+        await api.post(`/api/admin/restaurants/${restaurantId}/accounts`, form)
+        toast.success('Account created')
+      }
+      onSaved()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to save account')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-surface rounded-xl shadow-lg w-full max-w-md mx-4 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h3 className="font-bold font-display text-text">{isEdit ? 'Edit Account' : 'New Account'}</h3>
+          <button onClick={onClose} className="text-muted hover:text-text"><X size={18} /></button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <Field label="Full Name" value={form.name} onChange={(v) => set('name', v)} />
+          <Field label="Email" type="email" value={form.email} onChange={(v) => set('email', v)} />
+          <Field label="Phone" value={form.phone} onChange={(v) => set('phone', v)} />
+          <div>
+            <label className="block text-xs font-semibold text-text2 mb-1">Role</label>
+            <select
+              value={form.role}
+              onChange={(e) => set('role', e.target.value)}
+              disabled={isEdit}
+              className="w-full bg-bg border border-border2 text-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all disabled:bg-surface2 disabled:text-text3"
+            >
+              {ROLES.filter((r) => r !== 'owner').map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+            </select>
+          </div>
+          <Field
+            label={isEdit ? 'New Password (leave blank to keep current)' : 'Password'}
+            type="password"
+            value={form.password}
+            onChange={(v) => set('password', v)}
+          />
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-text3 hover:text-text bg-surface2 rounded-lg transition-all">Cancel</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 text-sm font-semibold text-white bg-green hover:bg-green2 rounded-lg transition-all disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function RestaurantDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [data, setData] = useState(null)
+  const [tab, setTab] = useState('details')
+  const [accountRole, setAccountRole] = useState('owner')
+  const [accountModal, setAccountModal] = useState(null) // null | 'create' | account object
+  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    api.get(`/api/admin/restaurants/${id}`)
-      .then((r) => setData(r.data))
-      .catch(() => toast.error('Failed to load restaurant'))
-  }, [id])
+  // Details form
+  const [details, setDetails] = useState({})
+  // License form
+  const [license, setLicense] = useState({})
 
-  if (!data) return <div className="text-gray-400 text-sm">Loading...</div>
+  async function load() {
+    try {
+      const { data: d } = await api.get(`/api/admin/restaurants/${id}`)
+      setData(d)
+      setDetails({ name: d.name, phone: d.phone, address: d.address, city: d.city, gstin: d.gstin, fssai: d.fssai, gst_rate: d.gst_rate })
+      setLicense({ plan: d.plan, expiry_date: d.trial_ends_at ? d.trial_ends_at.split('T')[0] : '' })
+    } catch {
+      toast.error('Failed to load restaurant')
+    }
+  }
+
+  useEffect(() => { load() }, [id])
+
+  async function toggleActive() {
+    const endpoint = data.is_active ? 'suspend' : 'activate'
+    try {
+      await api.patch(`/api/admin/restaurants/${id}/${endpoint}`)
+      toast.success(data.is_active ? 'Restaurant suspended' : 'Restaurant activated')
+      setData((d) => ({ ...d, is_active: !d.is_active }))
+    } catch { toast.error('Action failed') }
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${data.name}" permanently? This cannot be undone.`)) return
+    try {
+      await api.delete(`/api/admin/restaurants/${id}`)
+      toast.success('Restaurant deleted')
+      navigate('/restaurants')
+    } catch { toast.error('Delete failed') }
+  }
+
+  async function saveDetails() {
+    setSaving(true)
+    try {
+      await api.patch(`/api/admin/restaurants/${id}/details`, details)
+      toast.success('Details saved')
+      load()
+    } catch { toast.error('Failed to save') } finally { setSaving(false) }
+  }
+
+  async function saveLicense() {
+    setSaving(true)
+    try {
+      await api.patch(`/api/admin/restaurants/${id}/license`, license)
+      toast.success('License updated')
+      load()
+    } catch { toast.error('Failed to update license') } finally { setSaving(false) }
+  }
+
+  async function deleteAccount(userId) {
+    if (!confirm('Delete this account permanently?')) return
+    try {
+      await api.delete(`/api/admin/restaurants/${id}/accounts/${userId}`)
+      toast.success('Account deleted')
+      load()
+    } catch { toast.error('Delete failed') }
+  }
+
+  if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Loading...</div>
+
+  const accountsByRole = ROLES.reduce((acc, r) => {
+    acc[r] = (data.accounts || []).filter((u) => u.role === r)
+    return acc
+  }, {})
 
   return (
-    <div>
-      <button onClick={() => navigate('/restaurants')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-5">
-        <ArrowLeft size={16} /> Back to Restaurants
+    <div className="space-y-5">
+      {/* Back */}
+      <button onClick={() => navigate('/restaurants')} className="inline-flex items-center gap-1.5 text-sm text-text3 hover:text-text transition-colors">
+        <ArrowLeft size={15} /> Back to Restaurants
       </button>
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{data.name}</h2>
-          <p className="text-gray-500 text-sm">{data.city || 'No city'} · {data.phone || 'No phone'}</p>
+      {/* Header */}
+      <div className="bg-surface border border-border rounded-xl shadow-sm px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl font-bold font-display text-text">{data.name}</h1>
+            <p className="text-xs text-muted mt-0.5">
+              {data.city || 'No city'} · Created {data.created_at ? new Date(data.created_at).toLocaleDateString() : '—'}
+            </p>
+          </div>
+          <span className={`text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${data.is_active ? 'bg-green-dim text-green' : 'bg-red-dim text-red'}`}>
+            {data.is_active ? 'Active' : 'Suspended'}
+          </span>
         </div>
-        <span className={`text-sm font-medium px-3 py-1 rounded-full ${data.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-          {data.is_active ? 'Active' : 'Suspended'}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleActive}
+            className={`text-sm font-semibold px-4 py-1.5 rounded-lg transition-all ${data.is_active ? 'bg-red-dim text-red hover:bg-red/15' : 'bg-green-dim text-green hover:bg-green-mid'}`}
+          >
+            {data.is_active ? 'Suspend' : 'Activate'}
+          </button>
+          <button
+            onClick={handleDelete}
+            className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-red-dim text-red hover:bg-red/15 transition-all inline-flex items-center gap-1.5"
+          >
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Plan</p>
-          <p className="text-lg font-bold text-gray-900 capitalize">{data.plan}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Total Orders</p>
-          <p className="text-lg font-bold text-gray-900">{data.total_orders}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">GST Rate</p>
-          <p className="text-lg font-bold text-gray-900">{data.gst_rate}%</p>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        {['details', 'license', 'accounts'].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-semibold capitalize transition-all border-b-2 -mb-px ${
+              tab === t ? 'border-green text-green' : 'border-transparent text-text3 hover:text-text'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <h3 className="font-semibold text-gray-800 mb-4">Team Members</h3>
-        {data.users?.length === 0 ? (
-          <p className="text-gray-400 text-sm">No users found.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-100">
-              <tr>
-                <th className="text-left py-2 font-semibold text-gray-600">Name</th>
-                <th className="text-left py-2 font-semibold text-gray-600">Email</th>
-                <th className="text-left py-2 font-semibold text-gray-600">Role</th>
-                <th className="text-left py-2 font-semibold text-gray-600">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.users.map((u) => (
-                <tr key={u.id}>
-                  <td className="py-2 text-gray-900">{u.name}</td>
-                  <td className="py-2 text-gray-500">{u.email}</td>
-                  <td className="py-2 capitalize text-gray-700">{u.role}</td>
-                  <td className="py-2">
-                    {u.is_active ? (
-                      <span className="flex items-center gap-1 text-green-600 text-xs"><CheckCircle size={12} /> Active</span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-red-500 text-xs"><XCircle size={12} /> Inactive</span>
-                    )}
-                  </td>
-                </tr>
+      {/* ── Details Tab ── */}
+      {tab === 'details' && (
+        <div className="bg-surface border border-border rounded-xl shadow-sm p-6 space-y-5">
+          <p className="text-xs font-semibold text-text2 uppercase tracking-wide">Restaurant Information</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Restaurant Name" value={details.name} onChange={(v) => setDetails((p) => ({ ...p, name: v }))} />
+            <Field label="Phone" value={details.phone} onChange={(v) => setDetails((p) => ({ ...p, phone: v }))} />
+            <Field label="City" value={details.city} onChange={(v) => setDetails((p) => ({ ...p, city: v }))} />
+            <Field label="GST Rate (%)" type="number" value={details.gst_rate} onChange={(v) => setDetails((p) => ({ ...p, gst_rate: v }))} />
+            <div className="col-span-2">
+              <Field label="Address" value={details.address} onChange={(v) => setDetails((p) => ({ ...p, address: v }))} />
+            </div>
+            <Field label="GSTIN" value={details.gstin} onChange={(v) => setDetails((p) => ({ ...p, gstin: v }))} />
+            <Field label="FSSAI" value={details.fssai} onChange={(v) => setDetails((p) => ({ ...p, fssai: v }))} />
+          </div>
+
+          {data.owner && (
+            <>
+              <p className="text-xs font-semibold text-text2 uppercase tracking-wide pt-2 border-t border-border">Owner Contact</p>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="Owner Name" value={data.owner.name} readOnly />
+                <Field label="Owner Email" value={data.owner.email} readOnly />
+                <Field label="Owner Phone" value={data.owner.phone} readOnly />
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button onClick={saveDetails} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white bg-green hover:bg-green2 rounded-lg transition-all disabled:opacity-50">
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── License Tab ── */}
+      {tab === 'license' && (
+        <div className="bg-surface border border-border rounded-xl shadow-sm p-6 space-y-5">
+          <p className="text-xs font-semibold text-text2 uppercase tracking-wide">License & Plan</p>
+
+          <div>
+            <label className="block text-xs font-semibold text-text2 mb-3">Plan Type</label>
+            <div className="grid grid-cols-4 gap-3">
+              {PLANS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setLicense((l) => ({ ...l, plan: p }))}
+                  className={`py-3 rounded-xl border-2 text-sm font-bold capitalize transition-all ${
+                    license.plan === p
+                      ? 'border-green bg-green-dim text-green'
+                      : 'border-border text-text3 hover:border-border2 hover:bg-surface2'
+                  }`}
+                >
+                  {p}
+                </button>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="License Start (Registration Date)" value={data.created_at ? data.created_at.split('T')[0] : ''} readOnly />
+            <Field label="License Expiry" type="date" value={license.expiry_date} onChange={(v) => setLicense((l) => ({ ...l, expiry_date: v }))} />
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button onClick={saveLicense} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white bg-green hover:bg-green2 rounded-lg transition-all disabled:opacity-50">
+              {saving ? 'Saving...' : 'Update License'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Accounts Tab ── */}
+      {tab === 'accounts' && (
+        <div className="space-y-4">
+          {/* Role sub-tabs */}
+          <div className="flex gap-1">
+            {ROLES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setAccountRole(r)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${
+                  accountRole === r ? 'bg-green text-white' : 'bg-surface border border-border text-text3 hover:bg-surface2'
+                }`}
+              >
+                {r} ({accountsByRole[r].length})
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <p className="text-xs font-semibold text-text2 uppercase tracking-wide capitalize">{accountRole} Accounts</p>
+              <button
+                onClick={() => setAccountModal({ type: 'create', role: accountRole })}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-green hover:text-green2 bg-green-dim px-3 py-1.5 rounded-lg transition-all"
+              >
+                <Plus size={13} /> Add {accountRole}
+              </button>
+            </div>
+
+            {accountsByRole[accountRole].length === 0 ? (
+              <p className="text-center py-10 text-muted text-sm">No {accountRole} accounts yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-surface2">
+                    <th className="text-left px-5 py-2.5 text-xs font-semibold text-text3 uppercase tracking-wide">Name</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-semibold text-text3 uppercase tracking-wide">Email</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-semibold text-text3 uppercase tracking-wide">Phone</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-semibold text-text3 uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {accountsByRole[accountRole].map((u) => (
+                    <tr key={u.id} className="hover:bg-surface2 transition-colors">
+                      <td className="px-5 py-3 font-medium text-text">{u.name}</td>
+                      <td className="px-5 py-3 text-text3">{u.email}</td>
+                      <td className="px-5 py-3 text-text3">{u.phone || '—'}</td>
+                      <td className="px-5 py-3">
+                        {u.is_active
+                          ? <span className="inline-flex items-center gap-1 text-green text-xs font-semibold"><CheckCircle size={12} /> Active</span>
+                          : <span className="inline-flex items-center gap-1 text-red text-xs font-semibold"><XCircle size={12} /> Inactive</span>
+                        }
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            onClick={() => setAccountModal(u)}
+                            className="p-1.5 rounded-lg bg-surface2 text-text3 hover:text-green hover:bg-green-dim transition-all"
+                            title="Edit"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => deleteAccount(u.id)}
+                            className="p-1.5 rounded-lg bg-surface2 text-text3 hover:text-red hover:bg-red-dim transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Account modal */}
+      {accountModal && (
+        <AccountModal
+          restaurantId={id}
+          account={accountModal.type === 'create' ? null : accountModal}
+          defaultRole={accountModal.type === 'create' ? accountModal.role : accountModal.role}
+          onClose={() => setAccountModal(null)}
+          onSaved={() => { setAccountModal(null); load() }}
+        />
+      )}
     </div>
   )
 }
