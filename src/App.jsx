@@ -7,6 +7,9 @@ import Dashboard from './pages/Dashboard'
 import Restaurants from './pages/Restaurants'
 import RestaurantDetail from './pages/RestaurantDetail'
 import Users from './pages/Users'
+import SuperAdmins from './pages/SuperAdmins'
+import Announcements from './pages/Announcements'
+import ActivityLog from './pages/ActivityLog'
 
 function AdminApp() {
   return (
@@ -16,6 +19,9 @@ function AdminApp() {
         <Route path="/restaurants" element={<Restaurants />} />
         <Route path="/restaurants/:id" element={<RestaurantDetail />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/super-admins" element={<SuperAdmins />} />
+        <Route path="/announcements" element={<Announcements />} />
+        <Route path="/activity-log" element={<ActivityLog />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
