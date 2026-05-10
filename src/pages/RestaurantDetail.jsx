@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Trash2, CheckCircle, XCircle, Plus, Pencil, X, LogIn, Clock, AlertTriangle, Copy, Mail, BellOff, Bell } from 'lucide-react'
+import { ArrowLeft, Trash2, CheckCircle, XCircle, Plus, Pencil, X, LogIn, Clock, AlertTriangle, Copy, Mail, BellOff, Bell, ToggleLeft, ToggleRight } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -87,8 +87,7 @@ function AccountModal({ restaurantId, account, defaultRole, onClose, onSaved }) 
             <select
               value={form.role}
               onChange={(e) => set('role', e.target.value)}
-              disabled={isEdit}
-              className="w-full bg-bg border border-border2 text-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all disabled:bg-surface2 disabled:text-text3"
+              className="w-full bg-bg border border-border2 text-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all"
             >
               {roleOptions.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
             </select>
@@ -115,6 +114,64 @@ function AccountModal({ restaurantId, account, defaultRole, onClose, onSaved }) 
   )
 }
 
+// ── License history helpers ───────────────────────────────────────────────────
+const planLabel = (p) => ({ trial: 'Trial', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' }[p] || (p || '—'))
+const planCls   = (p) => ({ trial: 'bg-amber-dim text-amber', starter: 'bg-blue-dim text-blue', pro: 'bg-purple-dim text-purple', enterprise: 'bg-green-dim text-green' }[p] || 'bg-surface2 text-text3')
+const fmtDate   = (s) => s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+
+function historyConfig(entry) {
+  const d = entry.details || {}
+  const changes = d.changes || {}
+  const plan = d.plan || changes.plan?.to
+
+  switch (entry.action) {
+    case 'create_restaurant':
+      return { dot: 'bg-green', planCls: 'bg-amber-dim text-amber', plan: 'Trial', label: 'Restaurant Registered', sub: 'Trial period started' }
+
+    case 'update_license': {
+      if (changes.plan) {
+        return {
+          dot: 'bg-purple', planCls: planCls(changes.plan.to), plan: planLabel(changes.plan.to),
+          label: `Plan: ${planLabel(changes.plan.from)} → ${planLabel(changes.plan.to)}`,
+          sub: changes.expiry_date ? `Expiry set to ${fmtDate(changes.expiry_date.to)}` : null,
+        }
+      }
+      if (changes.expiry_date) {
+        return {
+          dot: 'bg-blue', planCls: planCls(plan), plan: planLabel(plan),
+          label: 'Expiry updated',
+          sub: `${fmtDate(changes.expiry_date.from)} → ${fmtDate(changes.expiry_date.to)}`,
+        }
+      }
+      return { dot: 'bg-blue', planCls: planCls(plan), plan: planLabel(plan), label: 'License updated', sub: null }
+    }
+
+    case 'bulk_change_plan':
+      return { dot: 'bg-purple', planCls: planCls(d.plan), plan: planLabel(d.plan), label: `Plan changed to ${planLabel(d.plan)}`, sub: null }
+
+    case 'bulk_extend_trial': {
+      const days = d.days || 14
+      return {
+        dot: 'bg-amber', planCls: planCls(plan), plan: planLabel(plan),
+        label: `Trial extended +${days} day${days !== 1 ? 's' : ''}`,
+        sub: d.new_expiry ? `New expiry: ${fmtDate(d.new_expiry)}` : null,
+      }
+    }
+
+    case 'bulk_activate':
+      return { dot: 'bg-green', planCls: 'bg-green-dim text-green', plan: 'Activated', label: 'Restaurant Activated', sub: null }
+
+    case 'bulk_suspend':
+      return { dot: 'bg-red', planCls: 'bg-red-dim text-red', plan: 'Suspended', label: 'Restaurant Suspended', sub: null }
+
+    case 'restaurant_auto_deactivated':
+      return { dot: 'bg-red', planCls: 'bg-red-dim text-red', plan: 'Expired', label: 'Auto-Deactivated', sub: 'Trial expired — access suspended' }
+
+    default:
+      return { dot: 'bg-surface3', planCls: 'bg-surface2 text-text3', plan: '—', label: entry.action.replace(/_/g, ' '), sub: null }
+  }
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function RestaurantDetail() {
   const { id } = useParams()
@@ -137,6 +194,8 @@ export default function RestaurantDetail() {
   // Notes
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  // License history
+  const [licenseHistory, setLicenseHistory] = useState([])
 
   async function load() {
     try {
@@ -151,12 +210,19 @@ export default function RestaurantDetail() {
     }
   }
 
-  useEffect(() => { load(); loadActivity() }, [id])
+  useEffect(() => { load(); loadActivity(); loadLicenseHistory() }, [id])
 
   async function loadActivity() {
     try {
       const { data: d } = await api.get('/api/admin/activity-log', { params: { limit: 50 } })
       setActivityLogs(d.logs.filter((l) => l.target_id === Number(id)))
+    } catch {}
+  }
+
+  async function loadLicenseHistory() {
+    try {
+      const { data: d } = await api.get(`/api/admin/restaurants/${id}/license-history`)
+      setLicenseHistory(d)
     } catch {}
   }
 
@@ -194,6 +260,7 @@ export default function RestaurantDetail() {
       await api.patch(`/api/admin/restaurants/${id}/license`, license)
       toast.success('License updated')
       load()
+      loadLicenseHistory()
     } catch { toast.error('Failed to update license') } finally { setSaving(false) }
   }
 
@@ -240,6 +307,14 @@ Best regards,
 BillByte Team`
     )
     return `mailto:${to}?subject=${subject}&body=${body}`
+  }
+
+  async function toggleAccountActive(user) {
+    try {
+      await api.patch(`/api/admin/restaurants/${id}/accounts/${user.id}`, { is_active: !user.is_active })
+      toast.success(user.is_active ? 'Account deactivated' : 'Account activated')
+      load()
+    } catch { toast.error('Failed to update account') }
   }
 
   async function deleteAccount(userId) {
@@ -452,6 +527,13 @@ BillByte Team`
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
+                        onClick={() => toggleAccountActive(owner)}
+                        title={owner.is_active ? 'Deactivate account' : 'Activate account'}
+                        className={`p-1.5 rounded-lg transition-all ${owner.is_active ? 'text-green bg-green-dim hover:bg-green/20' : 'text-muted bg-surface2 hover:text-green hover:bg-green-dim'}`}
+                      >
+                        {owner.is_active ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
+                      </button>
+                      <button
                         onClick={() => setAccountModal(owner)}
                         className="p-1.5 rounded-lg bg-surface text-text3 hover:text-green hover:bg-green-dim transition-all"
                         title="Edit owner"
@@ -508,6 +590,45 @@ BillByte Team`
               {saving ? 'Saving...' : 'Update License'}
             </button>
           </div>
+
+          {/* License History */}
+          {licenseHistory.length > 0 && (
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs font-semibold text-text2 uppercase tracking-wide mb-4">License History</p>
+              <div className="relative">
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+                <div className="space-y-0">
+                  {[...licenseHistory].reverse().map((entry, i) => {
+                    const cfg = historyConfig(entry)
+                    return (
+                      <div key={entry.id ?? i} className="relative flex gap-4 pb-5 last:pb-0">
+                        <div className={`relative z-10 w-3.5 h-3.5 rounded-full flex-shrink-0 mt-1 border-2 border-surface ${cfg.dot}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${cfg.planCls}`}>
+                                {cfg.plan}
+                              </span>
+                              <div>
+                                <p className="text-sm font-semibold text-text leading-snug">{cfg.label}</p>
+                                {cfg.sub && <p className="text-[11px] text-muted mt-0.5">{cfg.sub}</p>}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[11px] text-muted whitespace-nowrap">{fmtDate(entry.date)}</p>
+                              {entry.by && entry.by !== 'System' && (
+                                <p className="text-[10px] text-muted opacity-60">by {entry.by}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -616,6 +737,13 @@ BillByte Team`
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2 justify-end">
                           <button
+                            onClick={() => toggleAccountActive(u)}
+                            title={u.is_active ? 'Deactivate account' : 'Activate account'}
+                            className={`p-1.5 rounded-lg transition-all ${u.is_active ? 'text-green bg-green-dim hover:bg-green/20' : 'text-muted bg-surface2 hover:text-green hover:bg-green-dim'}`}
+                          >
+                            {u.is_active ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
+                          </button>
+                          <button
                             onClick={() => setAccountModal(u)}
                             className="p-1.5 rounded-lg bg-surface2 text-text3 hover:text-green hover:bg-green-dim transition-all"
                             title="Edit"
@@ -695,7 +823,7 @@ BillByte Team`
             </div>
             <div className="px-5 py-4 space-y-3">
               <p className="text-sm text-text3">
-                Logging in as <span className="font-semibold text-text">{impersonateModal.owner_name}</span> ({impersonateModal.owner_email}) for <span className="font-semibold text-text">{impersonateModal.restaurant_name}</span>.
+                Accessing <span className="font-semibold text-text">{impersonateModal.restaurant_name}</span> as <span className="font-semibold text-text">{impersonateModal.admin_name}</span> ({impersonateModal.admin_email}) with full owner access.
               </p>
               <div className="bg-bg rounded-lg p-3 flex items-center gap-2">
                 <code className="flex-1 text-xs text-text3 break-all font-mono">{impersonateModal.token}</code>
