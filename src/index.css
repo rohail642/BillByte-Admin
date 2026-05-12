@@ -6,15 +6,24 @@
 
 /* ── RESET & BASE ───────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  background: #f7f5f2;
+}
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 14px;
   line-height: 1.6;
   color: var(--text);
-  background: var(--bg);
-  height: 100vh;
-  overflow: hidden;
+  background: #f7f5f2;
 }
 h1,h2,h3,h4,h5,h6 { font-family: 'Outfit', sans-serif; }
 button { font-family: 'Plus Jakarta Sans', sans-serif; }

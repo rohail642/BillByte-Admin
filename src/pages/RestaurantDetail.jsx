@@ -843,7 +843,7 @@ BillByte Team`
               <button onClick={() => setImpersonateModal(null)} className="px-4 py-2 text-sm font-semibold text-text3 hover:text-text bg-surface2 rounded-lg transition-all">Close</button>
               <button
                 onClick={() => {
-                  window.open(`http://localhost:3000?impersonate=${impersonateModal.token}`, '_blank')
+                  window.open(`${import.meta.env.VITE_RESTAURANT_URL || 'http://localhost:3000'}?impersonate=${impersonateModal.token}`, '_blank')
                   setImpersonateModal(null)
                 }}
                 className="px-4 py-2 text-sm font-semibold text-white bg-green hover:bg-green2 rounded-lg transition-all"

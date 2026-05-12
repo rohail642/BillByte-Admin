@@ -1,7 +1,31 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { LayoutDashboard, UtensilsCrossed, Users, LogOut, ShieldCheck, Megaphone, Activity } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import logoText from '../assets/logo-text.png'
+
+const pageTitles = {
+  '/':               'Dashboard',
+  '/restaurants':    'Restaurants',
+  '/users':          'Users',
+  '/super-admins':   'Super Admins',
+  '/announcements':  'Announcements',
+  '/activity-log':   'Activity Log',
+}
+
+function Topbar() {
+  const location = useLocation()
+  const title = pageTitles[location.pathname] || 'BillByte Admin'
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })
+
+  return (
+    <header className="flex-shrink-0 flex items-center justify-between px-6 border-b border-border bg-surface2" style={{ height: 'var(--topbar-h)' }}>
+      <div>
+        <h1 className="font-display font-bold text-[15px] text-text">{title}</h1>
+        <p className="text-[11px] text-muted">{today}</p>
+      </div>
+    </header>
+  )
+}
 
 const nav = [
   { to: '/',               icon: LayoutDashboard, label: 'Dashboard',    end: true },
@@ -30,7 +54,7 @@ export default function Layout({ children }) {
       >
         {/* Brand */}
         <div className="flex flex-col items-start justify-center px-4 border-b border-border gap-0.5" style={{ height: 'var(--topbar-h)' }}>
-          <img src={logoText} alt="BillByte" style={{ width: 100, mixBlendMode: 'multiply' }} />
+          <img src={logoText} alt="BillByte" style={{ width: 82, mixBlendMode: 'multiply' }} />
           <p className="text-[10px] font-semibold text-muted uppercase tracking-wide leading-none">Admin Console</p>
         </div>
 
@@ -82,6 +106,7 @@ export default function Layout({ children }) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <Topbar />
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
