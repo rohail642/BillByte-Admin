@@ -351,7 +351,7 @@ BillByte Team`
 
       {/* Header */}
       <div className="bg-surface border border-border rounded-xl shadow-sm px-6 py-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="flex items-start gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -395,7 +395,7 @@ BillByte Team`
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0">
             {/* Reminders toggle */}
             <button
               onClick={toggleReminders}
@@ -441,7 +441,7 @@ BillByte Team`
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {['details', 'license', 'modules', 'accounts', 'activity'].map((t) => (
           <button
             key={t}
@@ -459,7 +459,7 @@ BillByte Team`
       {tab === 'details' && (
         <div className="bg-surface border border-border rounded-xl shadow-sm p-6 space-y-5">
           <p className="text-xs font-semibold text-text2 uppercase tracking-wide">Restaurant Information</p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Restaurant Name" value={details.name} onChange={(v) => setDetails((p) => ({ ...p, name: v }))} />
             <Field label="Phone" value={details.phone} onChange={(v) => setDetails((p) => ({ ...p, phone: v }))} />
             <Field label="City" value={details.city} onChange={(v) => setDetails((p) => ({ ...p, city: v }))} />
@@ -580,7 +580,7 @@ BillByte Team`
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="License Start (Registration Date)" value={data.created_at ? data.created_at.split('T')[0] : ''} readOnly />
             <Field label="License Expiry" type="date" value={license.expiry_date} onChange={(v) => setLicense((l) => ({ ...l, expiry_date: v }))} />
           </div>
@@ -699,7 +699,7 @@ BillByte Team`
           </div>
 
           <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-wrap gap-2">
               <p className="text-xs font-semibold text-text2 uppercase tracking-wide capitalize">{accountRole} Accounts</p>
               <button
                 onClick={() => setAccountModal({ type: 'create', role: accountRole })}
@@ -712,7 +712,8 @@ BillByte Team`
             {accountsByRole[accountRole].length === 0 ? (
               <p className="text-center py-10 text-muted text-sm">No {accountRole} accounts yet.</p>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
                 <thead>
                   <tr className="border-b border-border bg-surface2">
                     <th className="text-left px-5 py-2.5 text-xs font-semibold text-text3 uppercase tracking-wide">Name</th>
@@ -763,6 +764,7 @@ BillByte Team`
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

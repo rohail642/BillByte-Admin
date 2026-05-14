@@ -263,9 +263,9 @@ export default function ActivityLog() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
+        <div className="relative flex-1 min-w-[200px]">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={search}
@@ -289,40 +289,42 @@ export default function ActivityLog() {
         </select>
 
         {/* Date range */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="bg-surface border border-border2 text-text2 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all"
+            className="flex-1 min-w-[130px] bg-surface border border-border2 text-text2 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all"
           />
           <span className="text-muted text-xs">to</span>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="bg-surface border border-border2 text-text2 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all"
+            className="flex-1 min-w-[130px] bg-surface border border-border2 text-text2 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green transition-all"
           />
         </div>
 
-        {/* Search button */}
-        <button
-          onClick={() => load(0)}
-          className="px-4 py-2 text-sm font-semibold bg-green hover:bg-green2 text-white rounded-lg transition-all"
-        >
-          Search
-        </button>
-
-        {hasFilters && (
-          <button onClick={clearFilters} className="inline-flex items-center gap-1 text-xs text-muted hover:text-text transition-colors px-2">
-            <X size={12} /> Clear
+        {/* Search + Clear */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => load(0)}
+            className="px-4 py-2 text-sm font-semibold bg-green hover:bg-green2 text-white rounded-lg transition-all"
+          >
+            Search
           </button>
-        )}
+          {hasFilters && (
+            <button onClick={clearFilters} className="inline-flex items-center gap-1 text-xs text-muted hover:text-text transition-colors px-2">
+              <X size={12} /> Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="border-b border-border bg-surface2">
               <th className="text-left px-5 py-3 text-xs font-semibold text-text3 uppercase tracking-wide w-36">Time</th>
@@ -368,6 +370,7 @@ export default function ActivityLog() {
           </tbody>
         </table>
 
+        </div>
         {/* Pagination */}
         {total > LIMIT && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-border">

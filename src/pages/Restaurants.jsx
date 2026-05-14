@@ -124,12 +124,12 @@ export default function Restaurants() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold font-display text-text">Restaurants</h1>
           <p className="text-xs text-muted mt-0.5">Manage all restaurants on the platform</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={exportCSV}
             className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border border-border text-text3 hover:bg-surface2 transition-all"
@@ -230,7 +230,8 @@ export default function Restaurants() {
 
       {/* Table */}
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b border-border bg-surface2">
               <th className="px-4 py-3">
@@ -308,6 +309,7 @@ export default function Restaurants() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showCreate && (

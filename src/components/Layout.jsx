@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, UtensilsCrossed, Users, LogOut, ShieldCheck, Megaphone, Activity } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, Users, LogOut, ShieldCheck, Megaphone, Activity, Menu, X } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import logoText from '../assets/logo-text.png'
 
@@ -10,21 +11,6 @@ const pageTitles = {
   '/super-admins':   'Super Admins',
   '/announcements':  'Announcements',
   '/activity-log':   'Activity Log',
-}
-
-function Topbar() {
-  const location = useLocation()
-  const title = pageTitles[location.pathname] || 'BillByte Admin'
-  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })
-
-  return (
-    <header className="flex-shrink-0 flex items-center justify-between px-6 border-b border-border bg-surface2" style={{ height: 'var(--topbar-h)' }}>
-      <div>
-        <h1 className="font-display font-bold text-[15px] text-text">{title}</h1>
-        <p className="text-[11px] text-muted">{today}</p>
-      </div>
-    </header>
-  )
 }
 
 const nav = [
@@ -39,6 +25,11 @@ const nav = [
 export default function Layout({ children }) {
   const { logout, user } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const title = pageTitles[location.pathname] || 'BillByte Admin'
+  const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })
 
   async function handleLogout() {
     await logout()
@@ -47,15 +38,37 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex h-screen bg-bg overflow-hidden">
+
+      {/* Mobile backdrop — same pattern as POS Sidebar */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className="flex flex-col bg-surface border-r border-border"
+        className={[
+          'fixed lg:static inset-y-0 left-0 z-50 lg:z-auto',
+          'flex flex-col bg-surface border-r border-border flex-shrink-0',
+          'transition-transform duration-300 lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        ].join(' ')}
         style={{ width: 'var(--sidebar-w)', minWidth: 'var(--sidebar-w)' }}
       >
         {/* Brand */}
-        <div className="flex flex-col items-start justify-center px-4 border-b border-border gap-0.5" style={{ height: 'var(--topbar-h)' }}>
-          <img src={logoText} alt="BillByte" style={{ width: 82, mixBlendMode: 'multiply' }} />
-          <p className="text-[10px] font-semibold text-muted uppercase tracking-wide leading-none">Admin Console</p>
+        <div className="flex items-center justify-between px-4 border-b border-border" style={{ height: 'var(--topbar-h)' }}>
+          <div>
+            <img src={logoText} alt="BillByte" style={{ width: 82, mixBlendMode: 'multiply' }} />
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-wide leading-none">Admin Console</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1.5 text-muted hover:text-text rounded-lg"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -65,6 +78,7 @@ export default function Layout({ children }) {
               key={to}
               to={to}
               end={end}
+              onClick={() => window.innerWidth < 1024 && setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                   isActive
@@ -105,9 +119,26 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
+        {/* Topbar */}
+        <header className="flex-shrink-0 flex items-center justify-between px-4 lg:px-6 border-b border-border bg-surface2" style={{ height: 'var(--topbar-h)' }}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-lg text-text3 hover:text-text hover:bg-surface3 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu size={18} />
+            </button>
+            <div>
+              <h1 className="font-display font-bold text-[15px] text-text">{title}</h1>
+              <p className="text-[11px] text-muted hidden sm:block">{today}</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {children}
         </main>
       </div>

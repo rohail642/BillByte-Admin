@@ -117,7 +117,8 @@ export default function SuperAdmins() {
       </div>
 
       <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[500px]">
           <thead>
             <tr className="border-b border-border bg-surface2">
               <th className="text-left px-5 py-3 text-xs font-semibold text-text3 uppercase tracking-wide">Name</th>
@@ -174,6 +175,7 @@ export default function SuperAdmins() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {modal && (
